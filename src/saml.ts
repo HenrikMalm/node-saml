@@ -192,14 +192,27 @@ class SAML {
     );
   }
 
+  async myGenerateAuthorizeUrlAsync(this: SAML, ssn: string) {
+        const id = this.options.generateUniqueId();
+        const request = await this.generateAuthorizeRequestAsync(this.options.passive, false, null, id, ssn);
+        const operation = "authorize";
+        const url = await this._requestToUrlAsync(request, null, operation, this._getAdditionalParams(null, operation, {}));
+        return {
+            id: id,
+            url: url
+        }
+    }
+
   protected async generateAuthorizeRequestAsync(
     this: SAML,
     isPassive: boolean,
     isHttpPostBinding: boolean,
+    id: string, 
+    ssn: string
   ): Promise<string> {
     assertRequired(this.options.entryPoint, "entryPoint is required");
 
-    const id = this.options.generateUniqueId();
+    //const id = this.options.generateUniqueId();
     const instant = generateInstant();
 
     if (this.mustValidateInResponseTo(true)) {
@@ -335,6 +348,18 @@ class SAML {
       request["samlp:AuthnRequest"]["samlp:Scoping"] = scoping;
     }
 
+   if (ssn) {
+            const nameId = {
+                "@Format": "urn:oasis:names:tc:SAML:2.0:nameid-format:unspecified",
+                "#text": ssn
+            }
+            const subject = {
+                "@xmlns:samlp": "urn:oasis:names:tc:SAML:2.0:assertion",
+            };
+            request["samlp:AuthnRequest"]["samlp:Subject"] = subject;
+            request["samlp:AuthnRequest"]["samlp:Subject"]["samlp:NameID"] = nameId;
+        }
+    
     let stringRequest = buildXmlBuilderObject(request, false);
     // TODO: maybe we should always sign here
     if (isHttpPostBinding && isValidSamlSigningOptions(this.options)) {
